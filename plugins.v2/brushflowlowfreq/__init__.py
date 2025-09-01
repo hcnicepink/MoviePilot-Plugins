@@ -2654,26 +2654,42 @@ class BrushFlowLowFreq(_PluginBase):
             return False, "H&R种子，未能满足设置的H&R删除条件"
 
         # 处理其他场景，1. 不是H&R种子；2. 是H&R种子但没有特定条件配置
-        reason = reason if not hit_and_run else "H&R种子（未设置H&R条件），未能满足设置的删除条件"
+        # 改为OR逻辑：任何一个条件满足就删除种子
+        delete_reasons = []
+        
+        # 检查做种时间
         if brush_config.seed_time and torrent_info.get("seeding_time") >= float(brush_config.seed_time) * 3600:
-            reason = f"做种时间 {torrent_info.get('seeding_time') / 3600:.1f} 小时，大于 {brush_config.seed_time} 小时"
-        elif brush_config.seed_ratio and torrent_info.get("ratio") >= float(brush_config.seed_ratio):
-            reason = f"分享率 {torrent_info.get('ratio'):.2f}，大于 {brush_config.seed_ratio}"
-        elif brush_config.seed_size and torrent_info.get("uploaded") >= float(brush_config.seed_size) * 1024 ** 3:
-            reason = f"上传量 {torrent_info.get('uploaded') / 1024 ** 3:.1f} GB，大于 {brush_config.seed_size} GB"
-        elif brush_config.download_time and torrent_info.get("downloaded") < torrent_info.get(
-                "total_size") and torrent_info.get("dltime") >= float(brush_config.download_time) * 3600:
-            reason = f"下载耗时 {torrent_info.get('dltime') / 3600:.1f} 小时，大于 {brush_config.download_time} 小时"
-        elif brush_config.seed_avgspeed and torrent_info.get("avg_upspeed") <= float(
-                brush_config.seed_avgspeed) * 1024 and torrent_info.get("seeding_time") >= 30 * 60:
-            reason = f"平均上传速度 {torrent_info.get('avg_upspeed') / 1024:.1f} KB/s，低于 {brush_config.seed_avgspeed} KB/s"
-        elif brush_config.seed_inactivetime and torrent_info.get("iatime") >= float(
-                brush_config.seed_inactivetime) * 60:
-            reason = f"未活动时间 {torrent_info.get('iatime') / 60:.0f} 分钟，大于 {brush_config.seed_inactivetime} 分钟"
+            delete_reasons.append(f"做种时间 {torrent_info.get('seeding_time') / 3600:.1f} 小时，大于 {brush_config.seed_time} 小时")
+        
+        # 检查分享率
+        if brush_config.seed_ratio and torrent_info.get("ratio") >= float(brush_config.seed_ratio):
+            delete_reasons.append(f"分享率 {torrent_info.get('ratio'):.2f}，大于 {brush_config.seed_ratio}")
+        
+        # 检查上传量
+        if brush_config.seed_size and torrent_info.get("uploaded") >= float(brush_config.seed_size) * 1024 ** 3:
+            delete_reasons.append(f"上传量 {torrent_info.get('uploaded') / 1024 ** 3:.1f} GB，大于 {brush_config.seed_size} GB")
+        
+        # 检查下载超时时间
+        if (brush_config.download_time and torrent_info.get("downloaded") < torrent_info.get("total_size") 
+                and torrent_info.get("dltime") >= float(brush_config.download_time) * 3600):
+            delete_reasons.append(f"下载耗时 {torrent_info.get('dltime') / 3600:.1f} 小时，大于 {brush_config.download_time} 小时")
+        
+        # 检查平均上传速度
+        if (brush_config.seed_avgspeed and torrent_info.get("avg_upspeed") <= float(brush_config.seed_avgspeed) * 1024 
+                and torrent_info.get("seeding_time") >= 30 * 60):
+            delete_reasons.append(f"平均上传速度 {torrent_info.get('avg_upspeed') / 1024:.1f} KB/s，低于 {brush_config.seed_avgspeed} KB/s")
+        
+        # 检查未活动时间
+        if brush_config.seed_inactivetime and torrent_info.get("iatime") >= float(brush_config.seed_inactivetime) * 60:
+            delete_reasons.append(f"未活动时间 {torrent_info.get('iatime') / 60:.0f} 分钟，大于 {brush_config.seed_inactivetime} 分钟")
+        
+        # 如果有任何条件满足，则删除种子
+        if delete_reasons:
+            reason = "，".join(delete_reasons)
+            return True, reason if not hit_and_run else "H&R种子（未设置H&R条件），" + reason
         else:
+            reason = "未能满足设置的删除条件" if not hit_and_run else "H&R种子（未设置H&R条件），未能满足设置的删除条件"
             return False, reason
-
-        return True, reason if not hit_and_run else "H&R种子（未设置H&R条件），" + reason
 
     def __evaluate_proxy_pre_conditions_for_delete(self, site_name: str, torrent_info: dict) -> Tuple[bool, str]:
         """
