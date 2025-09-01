@@ -241,7 +241,7 @@ class BrushConfig:
         return self.__str__()
 
 
-class BrushFlowLowFreq(_PluginBase):
+class BrushFlowLowFreqKing(_PluginBase):
     # region 全局定义
 
     # 插件名称
@@ -453,7 +453,7 @@ class BrushFlowLowFreq(_PluginBase):
                 logger.info(f"站点刷流定时服务启动，执行周期 {cron}")
                 cron_trigger = CronTrigger.from_crontab(cron)
                 services.append({
-                    "id": "BrushFlowLowFreq",
+                    "id": "BrushFlowLowFreqKing",
                     "name": "站点刷流大王（低频版）服务",
                     "trigger": cron_trigger,
                     "func": self.brush
@@ -461,7 +461,7 @@ class BrushFlowLowFreq(_PluginBase):
             else:
                 logger.info(f"站点刷流定时服务启动，时间间隔 {self._brush_interval} 分钟")
                 services.append({
-                    "id": "BrushFlowLowFreq",
+                    "id": "BrushFlowLowFreqKing",
                     "name": "站点刷流大王（低频版）服务",
                     "trigger": "interval",
                     "func": self.brush,
